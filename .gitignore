@@ -1,3 +1,4 @@
 .env
 user_data.json
 google_service_account.json
+__pycache__/
