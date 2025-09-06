@@ -174,14 +174,15 @@ class SheetOperations:
             original_cost,
             new_cost,
         ]]
-        print(values)
         self.edit_range(spreadsheet_id, record_sheet_name, (1,0), (1,len(values[0]) - 1), values)
 
         self.edit_cell(spreadsheet_id, overview_sheet_name, (self.row_of_ticker_symbol(spreadsheet_id, overview_sheet_name, record["code"]), original_record['股數']['index']), new_amount)
         self.edit_cell(spreadsheet_id, overview_sheet_name, (self.row_of_ticker_symbol(spreadsheet_id, overview_sheet_name, record["code"]), original_record['成本']['index']), new_cost)
 
         new_record = self.get_current_records(spreadsheet_id, overview_sheet_name, record["code"])
-        if str(new_record['股數']['value']) != str(new_amount) or str(new_record['成本']['value']) != str(new_cost):
+        updated_amount = round(float(new_record['股數']['value']) if '股數' in new_record and new_record['股數']['value'] != "" else 0, 4)
+        updated_cost = round(float(new_record['成本']['value']) if '成本' in new_record and new_record['成本']['value'] != "" else 0, 2)
+        if updated_amount != new_amount or updated_cost != new_cost:
             raise ValueError("Failed to update the trade record correctly.")
 
         col = [{"label": "股數", "value": "股數"}, {"label": "均價", "value": "平均價位"}, {"label": "現價", "value": "現價"}, {"label": "成本", "value": "成本"}, {"label": "現值", "value": "現值"}, {"label": "盈虧", "value": "目前盈虧"}, {"label": "佔比", "value": "佔比"}, {"label": "預定佔比", "value": "預定佔比"}, {"label": "可用餘額", "value": "可用餘額"}, {"label": "執行比率", "value": "執行率"}]

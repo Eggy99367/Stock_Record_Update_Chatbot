@@ -205,21 +205,7 @@ def handle_message(event):
         user_data[user_id]["state"] = "record_added"
         save_user_data()
     elif user_data[user_id]["state"] == "record_added" and message == "詳細資訊":
-        text = user_data[user_id]["record_details"]
-        print(text)
-        message = TemplateMessage(
-            alt_text="text",
-            template=ButtonsTemplate(
-                text=text,
-                actions=[
-                    MessageAction(
-                        label="繼續新增",
-                        text="新增交易紀錄"
-                    )
-                ]
-            )
-        )
-        message = text
+        message = user_data[user_id]["record_details"]
     # cmd = message.split()[0]
     reply_msg(event.reply_token, message)
 
