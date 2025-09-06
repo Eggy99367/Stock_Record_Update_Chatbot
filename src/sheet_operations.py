@@ -158,10 +158,10 @@ class SheetOperations:
         print("Adding trade record:", record)
         original_record = self.get_current_records(spreadsheet_id, overview_sheet_name, record["code"])
         range_name = f'{record_sheet_name}!A:E'
-        original_amount  = float(original_record['股數']["value"]) if original_record else 0
-        new_amount = original_amount + record['quantity'] if record['option'] == '+' else original_amount - record['quantity']
-        original_cost = float(original_record['成本']["value"]) if original_record else 0
-        new_cost = original_cost + (record['quantity'] * record['price']) if record['option'] == '+' else original_cost - (record['quantity'] * record['price'])
+        original_amount  = float(original_record['股數']["value"]) if original_record and '股數' in original_record and original_record['股數']["value"] != "" else 0
+        new_amount = round(original_amount + record['quantity'] if record['option'] == '+' else original_amount - record['quantity'], 4)
+        original_cost = float(original_record['成本']["value"]) if original_record and '成本' in original_record and original_record['成本']["value"] != "" else 0
+        new_cost = round(original_cost + (record['quantity'] * record['price']) if record['option'] == '+' else original_cost - (record['quantity'] * record['price']), 2)
         values = [[
             time.strftime("%Y/%m/%d %H:%M:%S"),
             record['code'],
@@ -180,6 +180,15 @@ class SheetOperations:
         self.edit_cell(spreadsheet_id, overview_sheet_name, (self.row_of_ticker_symbol(spreadsheet_id, overview_sheet_name, record["code"]), original_record['股數']['index']), new_amount)
         self.edit_cell(spreadsheet_id, overview_sheet_name, (self.row_of_ticker_symbol(spreadsheet_id, overview_sheet_name, record["code"]), original_record['成本']['index']), new_cost)
 
+        new_record = self.get_current_records(spreadsheet_id, overview_sheet_name, record["code"])
+        if str(new_record['股數']['value']) != str(new_amount) or str(new_record['成本']['value']) != str(new_cost):
+            raise ValueError("Failed to update the trade record correctly.")
+
+        col = [{"label": "股數", "value": "股數"}, {"label": "均價", "value": "平均價位"}, {"label": "現價", "value": "現價"}, {"label": "成本", "value": "成本"}, {"label": "現值", "value": "現值"}, {"label": "盈虧", "value": "目前盈虧"}, {"label": "佔比", "value": "佔比"}, {"label": "預定佔比", "value": "預定佔比"}, {"label": "可用餘額", "value": "可用餘額"}, {"label": "執行比率", "value": "執行率"}]
+        text = f"代碼: {record['code']}"
+        for c in col:
+            text += f"\n{c['label']}: {original_record[c['value']]['value'] if c['value'] in original_record else '0'} -> {new_record[c['value']]['value'] if c['value'] in new_record else '0'}"
+        return text
 
     def get_current_records(self, spreadsheet_id, ss_name, ticker_symbol):
         row_idx = self.row_of_ticker_symbol(spreadsheet_id, ss_name, ticker_symbol)

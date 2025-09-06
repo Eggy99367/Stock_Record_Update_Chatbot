@@ -79,6 +79,13 @@ def handle_message(event):
     if message == "設定試算表":
         user_data[user_id]["state"] = "set_spreadsheet_id"
         message = "請輸入試算表ID"
+    elif message == "新增交易紀錄":
+        if "spreadsheet_id" not in user_data[user_id] or "sheet_name" not in user_data[user_id]:
+            message = "請先設定試算表ID和工作表名稱，輸入「設定試算表」開始設定"
+        else:
+            user_data[user_id]["state"] = "add_trade_record"
+            save_user_data()
+            message = ("請輸入股票代碼:")
     elif user_data[user_id]["state"] == "set_spreadsheet_id":
         user_data[user_id]["spreadsheet_id"] = message
         user_data[user_id]["state"] = "set_sheet_name"
@@ -89,13 +96,6 @@ def handle_message(event):
         user_data[user_id]["state"] = "message"
         save_user_data()
         message = f"已設定工作表名稱為: {message}\n\n可以開始更新了!"
-    elif message.startswith("新增交易紀錄"):
-        if "spreadsheet_id" not in user_data[user_id] or "sheet_name" not in user_data[user_id]:
-            message = "請先設定試算表ID和工作表名稱，輸入「設定試算表」開始設定"
-        else:
-            user_data[user_id]["state"] = "add_trade_record"
-            save_user_data()
-            message = ("請輸入股票代碼:")
     elif user_data[user_id]["state"] == "add_trade_record":
         if sheet_ops.row_of_ticker_symbol(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_name"], message) == -1:
             message = "表單中找不到股票代碼，請重新輸入股票代碼:\n(請確認是否已在試算表中新增該股票代碼)"
@@ -140,11 +140,6 @@ def handle_message(event):
                 raise ValueError
             user_data[user_id]["trade_record"]["price"] = price
             record = user_data[user_id]["trade_record"]
-
-            
-
-            message = (f"已新增交易紀錄:\n股票代碼: {record['code']}\n交易選項: {record['option']}\n"
-                          f"交易數量: {record['quantity']}\n交易價格: {record['price']}")
             message = TemplateMessage(
                 alt_text="確認交易紀錄",
                 template=ButtonsTemplate(
@@ -163,28 +158,68 @@ def handle_message(event):
                 )
             )
             user_data[user_id]["state"] = "confirm_trade"
-            # user_data[user_id].pop("trade_record", None)
             save_user_data()
         except ValueError:
             message = "交易價格錯誤，請輸入正數"
-    elif message == "確認":
-        if sheet_ops.row_of_ticker_symbol(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_name"], user_data[user_id]["trade_record"]["code"]) == -1:
-            message = "表單中找不到股票代碼，請重新輸入股票代碼:\n(請確認是否已在試算表中新增該股票代碼)"
+    elif user_data[user_id]["state"] == "confirm_trade":
+        if message != "確認":
+            message = "已取消新增交易紀錄"
+        elif sheet_ops.row_of_ticker_symbol(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_name"], user_data[user_id]["trade_record"]["code"]) == -1:
+            message = "表單中找不到股票代碼，已取消新增交易紀錄\n(請確認是否已在試算表中新增該股票代碼)"
         else:
-            if "sheet_ids" not in user_data[user_id]:
-                user_data[user_id]["sheet_ids"] = {}
-                save_user_data()
-            if "登錄交易紀錄" not in user_data[user_id]["sheet_ids"]:
-                sheet_id = sheet_ops.get_sheet_id(user_data[user_id]["spreadsheet_id"], "登錄交易紀錄")
-                if sheet_id is not None:
-                    user_data[user_id]["sheet_ids"]["登錄交易紀錄"] = sheet_id
+            try:
+                if "sheet_ids" not in user_data[user_id]:
+                    user_data[user_id]["sheet_ids"] = {}
                     save_user_data()
-            sheet_ops.insert_row(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_ids"]["登錄交易紀錄"], 3)
-            print("row inserted")
-            sheet_ops.copy_range(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_ids"]["登錄交易紀錄"], (1, 0), (2, 10), (2, 0))
+                if "登錄交易紀錄" not in user_data[user_id]["sheet_ids"]:
+                    sheet_id = sheet_ops.get_sheet_id(user_data[user_id]["spreadsheet_id"], "登錄交易紀錄")
+                    if sheet_id is not None:
+                        user_data[user_id]["sheet_ids"]["登錄交易紀錄"] = sheet_id
+                        save_user_data()
+                sheet_ops.insert_row(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_ids"]["登錄交易紀錄"], 3)
+                print("row inserted")
+                sheet_ops.copy_range(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_ids"]["登錄交易紀錄"], (1, 0), (2, 10), (2, 0))
 
-            sheet_ops.add_trade_record(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_name"], "登錄交易紀錄", user_data[user_id]["trade_record"])
-
+                user_data[user_id]["record_details"] = sheet_ops.add_trade_record(user_data[user_id]["spreadsheet_id"], user_data[user_id]["sheet_name"], "登錄交易紀錄", user_data[user_id]["trade_record"])
+                save_user_data()
+                message = TemplateMessage(
+                    alt_text="交易紀錄已新增成功!",
+                    template=ButtonsTemplate(
+                        text="交易紀錄已新增成功!",
+                        actions=[
+                            MessageAction(
+                                label="詳細資訊",
+                                text="詳細資訊"
+                            ),
+                            MessageAction(
+                                label="繼續新增",
+                                text="新增交易紀錄"
+                            )
+                        ]
+                    )
+                )
+            except Exception as e:
+                print(e)
+                message = "新增交易紀錄失敗，請稍後再試"
+        # user_data[user_id].pop("trade_record", None)
+        user_data[user_id]["state"] = "record_added"
+        save_user_data()
+    elif user_data[user_id]["state"] == "record_added" and message == "詳細資訊":
+        text = user_data[user_id]["record_details"]
+        print(text)
+        message = TemplateMessage(
+            alt_text="text",
+            template=ButtonsTemplate(
+                text=text,
+                actions=[
+                    MessageAction(
+                        label="繼續新增",
+                        text="新增交易紀錄"
+                    )
+                ]
+            )
+        )
+        message = text
     # cmd = message.split()[0]
     reply_msg(event.reply_token, message)
 
